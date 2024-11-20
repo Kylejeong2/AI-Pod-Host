@@ -20,9 +20,10 @@ from livekit.agents import (
     cli,
     llm,
 )
-from livekit.plugins import openai
 
-from multimodal_agent import CustomMultimodalAgent  # Import the custom agent
+# from multimodal_agent import CustomMultimodalAgent  # Import the custom agent
+from livekit.agents.multimodal import MultimodalAgent
+from livekit.plugins import openai
 
 load_dotenv()
 
@@ -108,7 +109,8 @@ def run_multimodal_agent(ctx: JobContext, participant: rtc.Participant):
         turn_detection=config.turn_detection,
     )
     # Use the CustomMultimodalAgent instead of the default one
-    assistant = CustomMultimodalAgent(model=model)
+    # assistant = CustomMultimodalAgent(model=model)
+    assistant = MultimodalAgent(model=model)
     assistant.start(ctx.room)
     session = model.sessions[0]
 

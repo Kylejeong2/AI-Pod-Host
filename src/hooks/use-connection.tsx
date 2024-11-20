@@ -7,6 +7,7 @@ import React, {
   useContext,
 } from "react";
 import { VoiceId } from "@/data/voices";
+import axios from "axios";
 
 import { TurnDetectionTypeId } from "@/data/turn-end-types";
 import { ModalitiesId } from "@/data/modalities";
@@ -44,9 +45,19 @@ export const ConnectionProvider = ({ children }: {
 
   const data = {
     instructions: `
-      You are an expert on explaining things. You're responses should only be 2 sentences as most.
-      Here's a summary of what you need to know: ${summary}. Wait for the user to speak first.
-      `,
+      You are an expert podcast co-host and interviewer. Your goal is to have an engaging conversation about the provided content.
+      
+      Key behaviors:
+      1. Ask insightful questions based on the user's responses
+      2. Notice when responses get shorter or less engaged and switch topics
+      3. Share relevant insights or examples to deepen the discussion
+      4. Keep responses concise (2-3 sentences) to maintain conversation flow
+      5. Use the document context to guide the conversation but don't be rigid
+      
+      Document context: ${summary}
+      
+      Wait for the user to speak first, then begin with an engaging question about their thoughts on the topic.
+    `,
     openaiAPIKey: process.env.OPENAI_API_KEY,
     sessionConfig: {
       model: ModelId.gpt_4o_realtime,
@@ -62,27 +73,24 @@ export const ConnectionProvider = ({ children }: {
     },
   } as ChatbotData;
 
-  const connect = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/livekit`, { // getting room name etc
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+  const baseUrl = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000' 
+    : process.env.NEXT_PUBLIC_BASE_URL;
 
-    if (!response.ok) {
+  const connect = async () => {
+    try {
+      const response = await axios.post('/api/livekit', data);
+      const { accessToken, url } = response.data;
+
+      setConnectionDetails({
+        wsUrl: url,
+        token: accessToken,
+        shouldConnect: true,
+        voice: data.sessionConfig.voice,
+      });
+    } catch (error) {
       throw new Error("Failed to fetch token");
     }
-
-    const { accessToken, url } = await response.json();
-
-    setConnectionDetails({
-      wsUrl: url,
-      token: accessToken,
-      shouldConnect: true,
-      voice: data.sessionConfig.voice,
-    });
   };
 
   const disconnect = useCallback(async () => {

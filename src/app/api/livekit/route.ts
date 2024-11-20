@@ -50,6 +50,6 @@ export async function POST(request: Request) {
   });
   return Response.json({
     accessToken: await at.toJwt(),
-    url: process.env.NEXT_PUBLIC_LIVEKIT_URL,
+    url: process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://ai-cohost-biw90myt.livekit.cloud',
   });
 }

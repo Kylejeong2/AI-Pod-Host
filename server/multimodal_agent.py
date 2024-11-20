@@ -309,7 +309,23 @@ class CustomMultimodalAgent(MultimodalAgent):
         # Initialize Pinecone
         pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
         openai.api_key = os.getenv("OPENAI_API_KEY_EMBEDDINGS")
-        self._index = pc.Index("overlap")
+        self._index = pc.Index(os.getenv("PINECONE_INDEX"))
+        
+        # Initialize conversation state
+        self.conversation_state = {
+            'current_topic': None,
+            'discussed_topics': set(),
+            'engagement_metrics': {
+                'response_lengths': [],
+                'topic_repetitions': {},
+                'last_responses': []
+            },
+            'context': {
+                'namespace': None,
+                'summary': None,
+                'current_segment': None
+            }
+        }
 
     async def retrieve_context_from_pinecone(self, text_stream) -> str:
         try:
@@ -400,32 +416,101 @@ class CustomMultimodalAgent(MultimodalAgent):
             asyncio.create_task(self._handle_content_added(message))
     
     async def _handle_content_added(self, message: realtime.RealtimeContent):
-        """Separate async handler for content added events"""
-        logger.info("Processing new response content...")
-        
-        # Retrieve and enhance context
-        logger.info("Retrieving context from Pinecone...")
-        context = await self.retrieve_context_from_pinecone(message.text_stream)
-        
-        logger.info("Enhancing text stream with retrieved context...")
-        enhanced_text_stream = await self.enhance_with_context(message.text_stream, context)
+        try:
+            logger.info("Processing new response content...")
+            
+            # Analyze engagement and decide next action
+            engagement_score = self._analyze_engagement()
+            
+            if engagement_score < 0.5:  # Low engagement threshold
+                next_topic = await self._select_next_topic()
+                if next_topic:  # Add null check
+                    context = await self._get_topic_context(next_topic)
+                    transition = await self._generate_transition(
+                        self.conversation_state['current_topic'], 
+                        next_topic
+                    )
+                    enhanced_text_stream = await self.enhance_with_context(
+                        message.text_stream, 
+                        f"{transition}\n{context}"
+                    )
+                else:
+                    enhanced_text_stream = message.text_stream
+            else:
+                context = await self.retrieve_context_from_pinecone(message.text_stream)
+                enhanced_text_stream = await self.enhance_with_context(
+                    message.text_stream, 
+                    context
+                )
 
-        logger.info("Setting up transcription forwarder...")
-        tr_fwd = transcription.TTSSegmentsForwarder(
-            room=self._room,
-            participant=self._room.local_participant,
-            speed=self._opts.transcription.agent_transcription_speed,
-            sentence_tokenizer=self._opts.transcription.sentence_tokenizer,
-            word_tokenizer=self._opts.transcription.word_tokenizer,
-            hyphenate_word=self._opts.transcription.hyphenate_word,
-        )
+            # Update conversation state
+            self._update_conversation_state(message)
+            
+            # Setup transcription and playout
+            tr_fwd = self._setup_transcription_forwarder()
+            self._playing_handle = self._setup_playout(
+                message, 
+                enhanced_text_stream, 
+                tr_fwd
+            )
+        except Exception as e:
+            logger.error(f"Error handling content: {e}")
+            # Fallback to original message
+            tr_fwd = self._setup_transcription_forwarder()
+            self._playing_handle = self._setup_playout(
+                message, 
+                message.text_stream, 
+                tr_fwd
+            )
 
-        logger.info("Initiating playout with enhanced stream...")
-        self._playing_handle = self._agent_playout.play(
-            item_id=message.item_id,
-            content_index=message.content_index,
-            transcription_fwd=tr_fwd,
-            text_stream=enhanced_text_stream,
-            audio_stream=message.audio_stream,
+    def _analyze_engagement(self) -> float:
+        """Analyze user engagement based on response patterns"""
+        metrics = self.conversation_state['engagement_metrics']
+        
+        # Calculate average response length trend
+        if len(metrics['response_lengths']) >= 3:
+            recent_lengths = metrics['response_lengths'][-3:]
+            length_trend = (recent_lengths[-1] - recent_lengths[0]) / recent_lengths[0]
+        else:
+            length_trend = 0.0
+            
+        # Calculate topic repetition penalty
+        repetition_penalty = sum(metrics['topic_repetitions'].values()) / max(len(metrics['topic_repetitions']), 1)
+        
+        # Combine metrics (adjust weights as needed)
+        engagement_score = 0.6 * (1 + length_trend) + 0.4 * (1 - repetition_penalty)
+        return max(0.0, min(1.0, engagement_score))
+
+    async def _select_next_topic(self) -> str:
+        """Select next topic based on conversation context and available content"""
+        # Query Pinecone for unused topics
+        namespace = self.conversation_state['context']['namespace']
+        if not namespace:
+            return None
+            
+        results = self._index.query(
+            namespace=namespace,
+            filter={
+                "timestamp": {"$nin": list(self.conversation_state['discussed_topics'])}
+            },
+            top_k=3
         )
-        logger.info("Playout initiated successfully")
+        
+        if not results['matches']:
+            return None
+            
+        # Select highest scoring unused topic
+        next_topic = results['matches'][0]['metadata']['content']
+        self.conversation_state['discussed_topics'].add(next_topic)
+        return next_topic
+
+    def _update_conversation_state(self, message: realtime.RealtimeContent):
+        """Update conversation state with new interaction data"""
+        if hasattr(message, 'text_stream'):
+            text = message.text_stream
+            self.conversation_state['engagement_metrics']['response_lengths'].append(len(text))
+            self.conversation_state['engagement_metrics']['last_responses'].append(text)
+            
+            # Keep only last 5 responses
+            if len(self.conversation_state['engagement_metrics']['last_responses']) > 5:
+                self.conversation_state['engagement_metrics']['last_responses'].pop(0)

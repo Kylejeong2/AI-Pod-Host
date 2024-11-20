@@ -1,29 +1,37 @@
 "use client";
 
-import React, { createContext, useState, useContext } from 'react';
+import { createContext, useContext, ReactNode, useState } from 'react';
 
-type TranscriptContextType = {
-  summary: string;
+interface TranscriptContextType {
+  documentNamespace: string | null;
+  summary: string | null;
+  setDocumentNamespace: (namespace: string) => void;
   setSummary: (summary: string) => void;
-};
+}
 
 const TranscriptContext = createContext<TranscriptContextType | undefined>(undefined);
 
-export const TranscriptProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [summary, setSummary] = useState('');
+export function TranscriptProvider({ children }: { children: ReactNode }) {
+  const [documentNamespace, setDocumentNamespace] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
 
   return (
-    <TranscriptContext.Provider value={{ summary, setSummary }}>
+    <TranscriptContext.Provider value={{
+      documentNamespace,
+      summary,
+      setDocumentNamespace,
+      setSummary
+    }}>
       {children}
     </TranscriptContext.Provider>
   );
-};
+}
 
-export const useTranscript = () => {
+export function useTranscript() {
   const context = useContext(TranscriptContext);
   if (context === undefined) {
     throw new Error('useTranscript must be used within a TranscriptProvider');
   }
   return context;
-};
+}
 
