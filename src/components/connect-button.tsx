@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { useConnection } from "@/hooks/use-connection";
 import { Loader2, Mic } from "lucide-react";
 import { useVideo } from "@/hooks/VideoContext";
+import { useSummary } from "@/hooks/uses-summary";
 
 export function ConnectButton() {
   const { connect, disconnect, shouldConnect } = useConnection();
   const [connecting, setConnecting] = useState<boolean>(false);
   const { isPaused } = useVideo();
+  const { summary } = useSummary();
 
   const handleConnectionToggle = async () => {
     if (shouldConnect) {
@@ -31,10 +33,10 @@ export function ConnectButton() {
   }, [connect]);
 
   useEffect(() => {
-    if (process.env.OPENAI_API_KEY && isPaused) {
+    if (process.env.OPENAI_API_KEY && isPaused && summary) {
       initiateConnection();
     }
-  }, [initiateConnection, process.env.OPENAI_API_KEY, isPaused]);
+  }, [initiateConnection, process.env.OPENAI_API_KEY, isPaused, summary]);
 
   return ( 
     <>

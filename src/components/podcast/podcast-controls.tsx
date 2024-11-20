@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Settings } from "lucide-react";
 import { useAgent } from "@/hooks/use-agent";
 import { usePodcastSession } from "@/hooks/use-podcast-session";
+import { useConversationContext } from "@/hooks/use-conversation-context";
 import {
   Sheet,
   SheetContent,
@@ -15,11 +16,14 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useRouter } from "next/navigation";
 
 export function PodcastControls() {
+  const router = useRouter();
   const [isMuted, setIsMuted] = useState(false);
   const [autoProgress, setAutoProgress] = useState(true);
   const { resetSession } = usePodcastSession();
+  const { resetContext } = useConversationContext();
 
   const handleMuteToggle = () => {
     setIsMuted(!isMuted);
@@ -31,10 +35,13 @@ export function PodcastControls() {
   };
 
   const handleReset = () => {
-    if (confirm("Are you sure you want to end this session?")) {
-      resetSession();
-      window.location.reload();
-    }
+    router.push('/summary');
+  };
+
+  const handleStartNew = () => {
+    resetSession();
+    resetContext();
+    router.push('/');
   };
 
   return (
@@ -78,10 +85,16 @@ export function PodcastControls() {
 
       <div className="flex items-center gap-2">
         <Button
+          variant="outline"
+          onClick={handleStartNew}
+        >
+          Start New
+        </Button>
+        <Button
           variant="destructive"
           onClick={handleReset}
         >
-          End Session
+          End & View Summary
         </Button>
       </div>
     </div>

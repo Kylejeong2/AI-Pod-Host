@@ -14,26 +14,43 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Upload } from "lucide-react";
 import { useConnection } from "@/hooks/use-connection";
 import { usePodcastSession } from "@/hooks/use-podcast-session";
+import { useSummary } from "@/hooks/uses-summary";
 
 export function DocumentUpload() {
+  const { setSummary } = useSummary();
+  const { connect } = useConnection();
+  const { setTopics, setDocumentNamespace } = usePodcastSession();
   const [content, setContent] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const { connect } = useConnection();
-  const { setDocumentNamespace, setTopics } = usePodcastSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
     try {
+      const promptResponse = await fetch('/api/generate-system-prompt', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content })
+      });
+
+      if (!promptResponse.ok) {
+        throw new Error(`HTTP error! status: ${promptResponse.status}`);
+      }
+
+      const { systemPrompt } = await promptResponse.json();
+      if (!systemPrompt) {
+        throw new Error("No system prompt generated");
+      }
+
+      setSummary(systemPrompt);
+
       const response = await fetch('/api/process-document', {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json" 
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content,
+          systemPrompt,
           type: "text"
         })
       });
@@ -45,11 +62,13 @@ export function DocumentUpload() {
       const data = await response.json();
       setDocumentNamespace(data.namespace);
       
-      // Parse and set topics with discussion length initialized
-      const topics = data.analysis.topics.map((topic: any) => ({
-        ...topic,
-        discussionLength: 0,
-      }));
+      const topics = Array.isArray(data.analysis?.topics) 
+        ? data.analysis.topics.map((topic: any) => ({
+            ...topic,
+            discussionLength: 0,
+            status: 'pending'
+          }))
+        : [];
       setTopics(topics);
       
       toast({

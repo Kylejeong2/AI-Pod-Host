@@ -3,32 +3,30 @@ export function getEngagementIndicator(text: string) {
   const words = text.split(/\s+/).length;
   const avgWordLength = length / words;
   
-  // Basic engagement metrics
-  if (length > 200 && avgWordLength > 4) {
+  // More lenient engagement metrics
+  if (length > 100 && avgWordLength > 3) {
     return {
       type: 'high',
       message: 'Detailed and engaged response'
     };
   }
   
-  if (length > 100 || (length > 50 && avgWordLength > 5)) {
+  if (length > 50 || (length > 30 && avgWordLength > 3.5)) {
     return {
       type: 'medium',
-      message: 'Moderate engagement'
+      message: 'Good engagement'
     };
   }
   
   return {
     type: 'low',
-    message: 'Brief or limited response'
+    message: 'Consider expanding your response'
   };
 }
 
 export function calculateTopicProgress(discussionLength: number): number {
-  // Base progress calculation
-  let progress = Math.min(100, (discussionLength / 5) * 100);
-  
-  // Additional factors could be added here
+  // More gradual progress calculation
+  let progress = Math.min(100, (discussionLength / 7) * 100);
   return Math.round(progress);
 }
 
@@ -37,9 +35,10 @@ export function shouldTransitionTopic(
   discussionLength: number,
   repetitions: number
 ): boolean {
+  // More lenient transition conditions
   return (
-    currentEngagement < 0.4 ||
-    discussionLength > 10 ||
-    repetitions > 3
+    (currentEngagement < 0.3 && discussionLength > 5) || // Only transition if both engagement is low AND we've discussed for a while
+    discussionLength > 15 || // Allow longer discussions
+    repetitions > 4 // Allow more repetitions
   );
 } 

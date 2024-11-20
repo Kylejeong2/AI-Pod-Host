@@ -23,13 +23,13 @@ export async function POST(request: Request) {
       input: query,
     });
 
-    // Search Pinecone
+    // Search Pinecone with namespace
     const index = pinecone.Index(process.env.PINECONE_INDEX!);
-    const searchResponse = await index.query({
+    const searchResponse = await index.namespace(namespace).query({
       vector: embedding.data[0].embedding,
       topK: 3,
       includeMetadata: true,
-      includeValues: false
+      includeValues: false,
     });
 
     const relevantContexts = searchResponse.matches.map(match => match.metadata?.content);

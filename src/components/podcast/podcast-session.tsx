@@ -132,11 +132,8 @@ export function PodcastSession() {
                 {/* Main content area */}
                 <div className="w-2/3 p-4 border-r">
                   <div className="h-full flex flex-col">
-                    <div className="flex-grow overflow-y-auto" ref={transcriptContainerRef}>
-                      <PodcastTranscript
-                        scrollContainerRef={transcriptContainerRef}
-                        scrollButtonRef={scrollButtonRef}
-                      />
+                    <div className="flex-grow overflow-y-auto">
+                      <PodcastTranscript />
                     </div>
                   </div>
                 </div>

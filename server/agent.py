@@ -20,10 +20,10 @@ from livekit.agents import (
     cli,
     llm,
 )
-
-# from multimodal_agent import CustomMultimodalAgent  # Import the custom agent
 from livekit.agents.multimodal import MultimodalAgent
 from livekit.plugins import openai
+
+# from multimodal_agent import CustomMultimodalAgent  # Import the custom agent
 
 load_dotenv()
 

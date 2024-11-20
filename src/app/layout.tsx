@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ConnectionProvider } from "@/hooks/use-connection";
 import { Toaster } from "@/components/ui/toaster";
-import { TranscriptProvider } from '@/hooks/TranscriptContext';
+import { SummaryProvider } from "@/hooks/uses-summary";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -17,8 +17,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Talk to Overlap",
-  description: "Talk to Overlap",
+  title: "AI Podcast Co-Host",
+  description: "AI Podcast Co-Host",
 };
 
 export default function RootLayout({
@@ -28,15 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <TranscriptProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <SummaryProvider>
           <ConnectionProvider>
-              {children}
-              <Toaster />
+            {children}
+            <Toaster />
           </ConnectionProvider>
-        </TranscriptProvider>
+        </SummaryProvider>
       </body>
     </html>
   );

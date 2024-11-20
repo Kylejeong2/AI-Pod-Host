@@ -15,13 +15,7 @@ interface EngagementIndicator {
   message: string;
 }
 
-export function PodcastTranscript({
-  scrollContainerRef,
-  scrollButtonRef,
-}: {
-  scrollContainerRef: RefObject<HTMLElement>;
-  scrollButtonRef: RefObject<HTMLButtonElement>;
-}) {
+export function PodcastTranscript() {
   const { displayTranscriptions } = useAgent();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,8 +26,6 @@ export function PodcastTranscript({
     if (length < 50) return { type: 'low', message: 'Brief response - consider elaborating' };
     return null;
   };
-
-  // Keep existing scroll logic...
 
   return (
     <TooltipProvider>

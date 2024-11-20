@@ -467,19 +467,19 @@ class CustomMultimodalAgent(MultimodalAgent):
         """Analyze user engagement based on response patterns"""
         metrics = self.conversation_state['engagement_metrics']
         
-        # Calculate average response length trend
+        # Calculate average response length trend with more generous scoring
         if len(metrics['response_lengths']) >= 3:
             recent_lengths = metrics['response_lengths'][-3:]
             length_trend = (recent_lengths[-1] - recent_lengths[0]) / recent_lengths[0]
         else:
             length_trend = 0.0
             
-        # Calculate topic repetition penalty
-        repetition_penalty = sum(metrics['topic_repetitions'].values()) / max(len(metrics['topic_repetitions']), 1)
+        # Reduced repetition penalty weight
+        repetition_penalty = sum(metrics['topic_repetitions'].values()) / max(len(metrics['topic_repetitions']) * 2, 1)
         
-        # Combine metrics (adjust weights as needed)
-        engagement_score = 0.6 * (1 + length_trend) + 0.4 * (1 - repetition_penalty)
-        return max(0.0, min(1.0, engagement_score))
+        # More generous scoring (0.7 weight on length, 0.3 on repetition)
+        engagement_score = 0.7 * (1 + length_trend) + 0.3 * (1 - repetition_penalty)
+        return max(0.3, min(1.0, engagement_score)) # Minimum score of 0.3
 
     async def _select_next_topic(self) -> str:
         """Select next topic based on conversation context and available content"""

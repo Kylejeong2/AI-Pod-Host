@@ -14,7 +14,7 @@ import { ModalitiesId } from "@/data/modalities";
 import { ModelId } from "@/data/models";
 import { TranscriptionModelId } from "@/data/transcription-models";
 import { ChatbotData } from  "@/data/chatbot-data"
-import { useTranscript } from '@/hooks/TranscriptContext';
+import { useSummary } from "@/hooks/uses-summary";
 
 export type ConnectFn = () => Promise<void>;
 
@@ -35,7 +35,8 @@ const ConnectionContext = createContext<TokenGeneratorData | undefined>(
 export const ConnectionProvider = ({ children }: {
   children: React.ReactNode;
 }) => {
-  const { summary } = useTranscript();
+  const { summary } = useSummary();
+  
   const [connectionDetails, setConnectionDetails] = useState<{
     wsUrl: string;
     token: string;
@@ -43,7 +44,7 @@ export const ConnectionProvider = ({ children }: {
     voice: VoiceId;
   }>({ wsUrl: "", token: "", shouldConnect: false, voice: VoiceId.alloy });
 
-  const data = {
+  const getData = useCallback(() => ({
     instructions: `
       You are an expert podcast co-host and interviewer. Your goal is to have an engaging conversation about the provided content.
       
@@ -54,11 +55,12 @@ export const ConnectionProvider = ({ children }: {
       4. Keep responses concise (2-3 sentences) to maintain conversation flow
       5. Use the document context to guide the conversation but don't be rigid
       
-      Document context: ${summary}
+      Document context: ${summary || 'No document context available yet. Please upload a document to begin.'}
       
       Wait for the user to speak first, then begin with an engaging question about their thoughts on the topic.
     `,
     openaiAPIKey: process.env.OPENAI_API_KEY,
+    selectedPresetId: null,
     sessionConfig: {
       model: ModelId.gpt_4o_realtime,
       transcriptionModel: TranscriptionModelId.whisper1,
@@ -71,22 +73,22 @@ export const ConnectionProvider = ({ children }: {
       vadSilenceDurationMs: 200,
       vadPrefixPaddingMs: 300,
     },
-  } as ChatbotData;
-
-  const baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000' 
-    : process.env.NEXT_PUBLIC_BASE_URL;
+  }), [summary]);
 
   const connect = async () => {
+    if (!summary) {
+      throw new Error("Please upload a document first");
+    }
+    
     try {
-      const response = await axios.post('/api/livekit', data);
+      const response = await axios.post('/api/livekit', getData());
       const { accessToken, url } = response.data;
 
       setConnectionDetails({
         wsUrl: url,
         token: accessToken,
         shouldConnect: true,
-        voice: data.sessionConfig.voice,
+        voice: getData().sessionConfig.voice,
       });
     } catch (error) {
       throw new Error("Failed to fetch token");
@@ -104,7 +106,7 @@ export const ConnectionProvider = ({ children }: {
         token: connectionDetails.token,
         shouldConnect: connectionDetails.shouldConnect,
         voice: connectionDetails.voice,
-        data,
+        data: getData(),
         connect,
         disconnect,
       }}
